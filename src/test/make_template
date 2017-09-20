@@ -1,0 +1,22 @@
+
+
+PRG = {module}_test
+
+CC = g++
+CXXFLAG = -g -fPIC -Wall -Wno-reorder -std=c++11 -lpthread
+SRC = $(wildcard ./test_{module}.cpp ../core/*.cpp)
+OBJ = $(SRC:%.cpp=%.o)
+
+INC=-I. -I../core
+
+all : $(PRG)
+
+$(PRG) : $(OBJ)
+	$(CC) $(CXXFLAG) -o $@ $^ $(LIB) $(INC)
+
+%.o : %.cpp
+	$(CC) $(CXXFLAG) -c $< -o $@ $(INC)
+
+clean :
+	rm $(OBJ) $(PRG)
+
