@@ -26,13 +26,10 @@
 #include "io.h"
 using namespace std;
 
-#define     MIN_BUFF_SIZE       512
-
 class Buff;
 class Tcp : public IO {
 public:
-    Tcp(Epoll * epoll, int sockfd) : m_epoll(epoll), m_sockfd(sockfd), m_rbuff(nullptr), m_wbuff(nullptr)
-                                   , m_wtbufsize(MIN_BUFF_SIZE), m_fin(false), m_epollOpr(0) {}
+    Tcp(Epoll * epoll, int sockfd);
     virtual ~Tcp();
 
     void        SetReadFunc(function<int(Buff *)> readcb, uint32_t buffsize = 0);
@@ -46,7 +43,9 @@ protected:
     virtual int OnIoWrite() override;    
     virtual int OnIoRead() override;
 
-private:
+protected:    
+    int         OnTcpWrite();
+    
     int                     m_sockfd;
     Epoll                   *m_epoll;
     int                     m_epollOpr;

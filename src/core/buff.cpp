@@ -41,7 +41,7 @@ int Buff::Push(const char * pkg, uint32_t len) {
         uint32_t size = m_tail->capacity + m_tail->out - m_tail->in;
         if (size >= len - offset) {
             m_tail->Push(pkg + offset, len - offset);
-            return len;
+            break;
         }
         m_tail->Push(pkg + offset, size);        
         m_tail->next = new Block(m_tail->capacity);
@@ -51,6 +51,8 @@ int Buff::Push(const char * pkg, uint32_t len) {
         m_tail       = m_tail->next;
         offset       += size;
     }
+    m_occupated += len;
+    return (int)len;
 }
 
 int Buff::Pop(char * pkg, uint32_t len) {
@@ -60,16 +62,19 @@ int Buff::Pop(char * pkg, uint32_t len) {
         if (ret == -1) {
             return -1;
         } else if (ret == (int)(len - offset)) {
-            return (int)len;
+            break;
         }
         if (m_head->next == nullptr) {
-            return (int)offset;
+            len = offset;
+            break;
         }
         offset += ret;
         Block * cur = m_head;
         m_head = m_head->next;
         delete cur;
     }
+    m_occupated -= len;
+    return (int)len;
 }
 
 int Buff::Read(function<int(const char *, uint32_t)> readcb, bool once) {
@@ -85,15 +90,14 @@ int Buff::Read(function<int(const char *, uint32_t)> readcb, bool once) {
                 m_head = m_head->next;
                 delete temp;
                 continue;
-            } else {
-                return sum;
             }
+            break;
         }        
         int ret = readcb((const char *)m_head->Head(), cap);
         if (ret < 0) {
             return -1;
         }
-        m_head->out = ret;
+        m_head->out += ret;
         sum += ret;
         if (ret < (int)cap || once) {
             break;
@@ -204,7 +208,7 @@ int Buff::GetOffset(const string & end) {
     return -1;
 }
 
-char * Buff::GetPopBuffUntilStr(const string & end, uint32_t size) {
+char * Buff::GetPopBuffUntilStr(const string & end, uint32_t & size) {
     if (m_occupated == 0 || end.empty()) {
         return nullptr;
     }

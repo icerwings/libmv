@@ -33,7 +33,7 @@ int main() {
     if (svr.Open(1234, 10) != 0) {
         ErrorLog(0).Flush();
     }
-    svr.SetServFunc([](Buff * buff, Tcp * tcp){
+    svr.SetIoReadFunc([](Buff * buff, Tcp * tcp){
         return doHttpGet(buff, tcp);
     });
     svr.SetExitFunc([]{

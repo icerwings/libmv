@@ -36,7 +36,8 @@ public:
     virtual ~Server();
 
     int             Open(uint16_t port, uint32_t poolsize = 0);
-    void            SetServFunc(function<int(Buff *, Tcp *)> svrcb);
+    void            SetIoReadFunc(function<int(Buff *, Tcp *)> svrcb);
+    void            SetIoCloseFunc(function<void(Tcp *)> ioclosecb);
     void            SetCloseFunc(function<void()> closecb);
     void            SetExitSig(int exitsig);
     void            SetExitFunc(function<void()> exitcb);
@@ -55,6 +56,7 @@ private:
     Signalfd                        *m_signalfd;
     int                             m_sockfd;
     function<int(Buff *, Tcp *)>    m_svrcb;
+    function<void(Tcp *)>           m_ioclosecb;
     function<void()>                m_closecb;
     int                             m_emfile;
     vector<Epoll *>                 m_pool;

@@ -94,10 +94,12 @@ int Server::Open(uint16_t port, uint32_t poolsize) {
     return 0;
 }
 
-void Server::SetServFunc(function<int(Buff *, Tcp *)> svrcb) {
+void Server::SetIoReadFunc(function<int(Buff *, Tcp *)> svrcb) {
     m_svrcb = svrcb;
 }
-
+void Server::SetIoCloseFunc(function<void(Tcp *)> ioclosecb) {
+    m_ioclosecb = ioclosecb;
+}
 void Server::SetCloseFunc(function<void()> closecb) {
     m_closecb = closecb;
 }
@@ -189,7 +191,10 @@ int Server::OnIoRead() {
     if (tcp == nullptr) {
         return -1;
     }
-    tcp->SetCloseFunc([tcp]{
+    tcp->SetCloseFunc([&]{
+        if (m_ioclosecb) {
+            m_ioclosecb(tcp);
+        }
         delete tcp;
     });
     tcp->SetReadFunc([&](Buff * buff){

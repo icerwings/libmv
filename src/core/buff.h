@@ -34,7 +34,7 @@ public:
     int         Write(function<int(char *, uint32_t)> wtcb, bool once = false);
     int         Read(function<int(const char *, uint32_t)> readcb, bool once = false);
     char *      GetPopBuffByLen(uint32_t len);
-    char *      GetPopBuffUntilStr(const string & end, uint32_t size);
+    char *      GetPopBuffUntilStr(const string & end, uint32_t & size);
     int         Push(const char * pkg, uint32_t len);
     bool        Empty() {return (m_occupated == 0);}
 
