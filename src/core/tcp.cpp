@@ -152,7 +152,15 @@ int Tcp::SendMsg(const string & msg) {
 }
 
 void Tcp::SendFin() {
-    m_fin = true;
+    if (m_sockfd > 0 && m_epoll != nullptr) {
+        m_fin = true;
+        m_epollOpr = EPOLLOUT;
+        m_epoll->Operate(m_sockfd, m_epollOpr, this);
+    }
+}
+
+void Tcp::TcpClose() {
+    SendFin();
 }
 
 int Tcp::OnIoWrite() {

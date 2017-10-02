@@ -37,6 +37,7 @@ public:
     void        SetWtBuffSize(uint32_t size);
     int         SendMsg(const string & msg);
     void        SendFin();
+    void        TcpClose();
 
 protected:    
     virtual void OnIoClose() override;    
