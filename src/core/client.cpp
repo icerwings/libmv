@@ -87,12 +87,12 @@ int TcpClient::OnIoWrite() {
             return -1;
         }
         m_status = ConnStatus::CONNECTED;
-        if (m_wbuff == nullptr || m_wbuff->Empty()) {
-            m_epollOpr &= ~EPOLLOUT;
-            m_epoll->Operate(m_sockfd, m_epollOpr, this);
-        } else {
-            return OnTcpWrite();
-        }
+    }
+    if (m_wbuff == nullptr || m_wbuff->Empty()) {
+        m_epollOpr &= ~EPOLLOUT;
+        m_epoll->Operate(m_sockfd, m_epollOpr, this);
+    } else {
+        return OnTcpWrite();
     }
 
     return 0;
