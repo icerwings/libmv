@@ -191,13 +191,13 @@ int Server::OnIoRead() {
     if (tcp == nullptr) {
         return -1;
     }
-    tcp->SetCloseFunc([&]{
+    tcp->SetCloseFunc([&, tcp]{
         if (m_ioclosecb) {
             m_ioclosecb(tcp);
         }
         delete tcp;
     });
-    tcp->SetReadFunc([&](Buff * buff){
+    tcp->SetReadFunc([&, tcp](Buff * buff){
         if (m_svrcb) {
             return m_svrcb(buff, tcp);
         }
