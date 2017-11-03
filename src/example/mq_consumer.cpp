@@ -1,3 +1,4 @@
+
 #include "comm.h"
 #include <string.h>
 #include <stdio.h>
@@ -18,46 +19,44 @@ int doRecvPublish(Buff * buff, uint32_t & bodySize) {
         return -1;
     }
 
-    uint32_t    size        = 0;
     if (bodySize == 0) {
         MqHead * head = (MqHead *)buff->GetPopBuffByLen(sizeof(MqHead));
         if (head == nullptr) {
             return 0;
         }
         bodySize = head->bodySize;
-        if (bodySize < sizeof(MqBody)) {
+        if (bodySize == 0) {
             return -1;
         }
-        size = bodySize;
     }
-    
-    MqBody * body = (MqBody *)buff->GetPopBuffByLen(bodySize);
-    if (body == nullptr) {
+
+    const char* msgptr = (const char*)buff->GetPopBuffByLen(bodySize);
+    if (msgptr == nullptr) {
         return 0;
     }
-    size += bodySize;
+    
+    Stream   stream(msgptr, bodySize);
+    MqBody    body;
+    stream >> body;
+    InfoLog(body.topic)(static_cast<int>(body.type))(body.content).Flush();
     bodySize = 0;
-    InfoLog(body->topic)(static_cast<int>(body->type))(body->content).Flush();
 
-    return size;
+    return 1;
 }
 
 int SubscribeMsg(TcpClient * client) {
-    char        *packet = (char *)calloc(sizeof(MqHead) + sizeof(MqBody), sizeof(char));
-    if (packet == nullptr) {
-        return -1;
-    }
-    Defer   msgGuard([packet]{
-        delete packet;
-    });
+    Stream      stream;
+    MqBody      body;
+    MqHead      head;
 
-    MqHead      *msgHead = (MqHead *)packet;
-    MqBody      *msgBody = (MqBody *)(packet + sizeof(MqHead));
-    msgHead->bodySize = sizeof(MqBody);
-    msgBody->type = Type::SUBSCRIBE;
-    strncpy(msgBody->topic, "my topic", sizeof(msgBody->topic) - 1);
+    body.topic = "my topic";
+    body.type = Type::SUBSCRIBE;
     
-    return client->SendMsg(string(packet, sizeof(MqHead) + sizeof(MqBody)));
+    stream.MemPush((void *)&head, sizeof(head));
+    stream << body;
+    ((MqHead *)stream.str().c_str())->bodySize = stream.str().size() - sizeof(MqHead);
+    
+    return client->SendMsg(stream.str());
 }
 
 int threadRoute(Epoll * epoll) {
@@ -99,12 +98,16 @@ int main(int argc, char ** argv) {
         nums = atoi(argv[1]);
     }
 
+    Epoll * epoll = new Epoll[nums];
+    if (epoll == nullptr) {
+        return -1;
+    }
     for (int i = 0; i < nums; i++) {
         Epoll * epoll = new Epoll();
         if (epoll == nullptr) {
             return -1;
         }
-        thread   work([&]{
+        thread   work([epoll]{
             threadRoute(epoll);
         });
         work.detach();
@@ -113,7 +116,7 @@ int main(int argc, char ** argv) {
         }
     }
 
-    InfoLog("All thread worked!").Flush();
+    InfoLog("All thread work").Flush();
 
     while (1) {
         sleep(1);
@@ -121,4 +124,3 @@ int main(int argc, char ** argv) {
 
     return 0;
 }
-
