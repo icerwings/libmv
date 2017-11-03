@@ -1,3 +1,4 @@
+
 #include "comm.h"
 #include <string.h>
 #include <stdio.h>
@@ -11,56 +12,56 @@
 #include "defer.h"
 using namespace std;
 
-int doRecvAck(Buff * buff, uint32_t & bodySize) {
-    if (buff == nullptr) {
+int doRecvAck(Buff * buff, uint32_t & bodySize, TcpClient * client) {
+    if (buff == nullptr || client == nullptr) {
         return -1;
     }
 
-    uint32_t    size        = 0;
     if (bodySize == 0) {
         MqHead * head = (MqHead *)buff->GetPopBuffByLen(sizeof(MqHead));
         if (head == nullptr) {
+            PublishMsg(client);
             return 0;
         }
         bodySize = head->bodySize;
-        if (bodySize < sizeof(MqBody)) {
+        if (bodySize == 0) {
             return -1;
         }
-        size = bodySize;
     }
-    
-    MqBody * body = (MqBody *)buff->GetPopBuffByLen(bodySize);
-    if (body == nullptr) {
+
+    const char* msgptr = (const char*)buff->GetPopBuffByLen(bodySize);
+    if (msgptr == nullptr) {
         return 0;
     }
-    size += bodySize;
+    
+    Stream   stream(msgptr, bodySize);
+    MqBody    body;
+    stream >> body;
+    InfoLog(body.topic)(static_cast<int>(body.type)).Flush();
     bodySize = 0;
-
-    if (body->type == Type::PUBLISH_ACK) {
-        InfoLog(static_cast<int>(body->retcode))(body->topic).Flush();
+    
+    if (body.type == Type::PUBLISH_ACK) {
+        InfoLog(body.content).Flush();        
+        return 1;
     }
+    
     return -1;
 }
 
 int PublishMsg(TcpClient * client) {
-    string      msg     = "Hello world!";
-    uint32_t    size    = sizeof(MqHead) + sizeof(MqBody) + msg.size() + 1;
-    char        *packet = (char *)calloc(size, sizeof(char));
-    if (packet == nullptr) {
-        return -1;
-    }
-    Defer   msgGuard([&]{
-        delete packet;
-    });
+    Stream      stream;
+    MqBody      body;
+    MqHead      head;
 
-    MqHead      *msgHead = (MqHead *)packet;
-    MqBody      *msgBody = (MqBody *)(packet + sizeof(MqHead));
-    msgHead->bodySize = size - sizeof(MqHead);
-    msgBody->type = Type::PUBLISH;
-    strncpy(msgBody->topic, "my topic", sizeof(msgBody->topic) - 1);
-    strncpy(msgBody->content, msg.c_str(), msg.size());
+    body.topic = "my topic";
+    body.content = "Hello world!";
+    body.type = Type::PUBLISH;
     
-    return client->SendMsg(string(packet, size));
+    stream.MemPush((void *)&head, sizeof(head));
+    stream << body;
+    ((MqHead *)stream.str().c_str())->bodySize = stream.str().size() - sizeof(MqHead);
+    
+    return client->SendMsg(stream.str());
 }
 
 int main() {
@@ -86,13 +87,14 @@ int main() {
     });
     client->SetReadFunc([&bodySize](Buff * buff){
         return doRecvAck(buff, bodySize);
-   });
+    });
 
     if (PublishMsg(client) < 0) {
         return -1;
     }
 
     epoll->Loop();
+
     return 0;
 }
 
