@@ -1,7 +1,9 @@
+
 #ifndef __common_h__
 #define __common_h__
 
 #include <stdint.h>
+#include "protocol.h"
 
 enum class Type {
     SUBSCRIBE,
@@ -20,11 +22,14 @@ struct MqHead {
     int             version;
 };
 
-struct MqBody {
+struct MqBody : public MsgBase {
     Type            type;
     Code            retcode;
-    char            topic[64];
-    char            content[0];
+    string          topic;
+    string          content;
+
+    CLASS_ENCODE(s << type << retcode << topic << content)
+    CLASS_DECODE(s >> type >> retcode >> topic >> content)
 };
 
 #endif
