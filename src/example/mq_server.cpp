@@ -1,3 +1,4 @@
+
 #include <stdlib.h>
 #include <stdint.h>
 #include <string>
@@ -46,51 +47,42 @@ void OnUserExit(Tcp * tcp) {
 }
 
 int OnPublish(const string & topic, const string & content, Tcp * tcp) {
-    if (topic.empty() || content.empty() || tcp == nullptr) {
+    if (topic.empty() || content.empty()) {
         return -1;
     }
 
-    char        *ack = (char *)calloc(sizeof(MqHead) + sizeof(MqBody), sizeof(char));
-    if (ack == nullptr) {
-        return -1;
-    }
-    Defer   ackGuard([&]{
-        delete ack;
-    });
+    Stream      stream;
+    MqBody      body;
+    MqHead      head;
 
-    MqHead      *ackHead = (MqHead *)ack;
-    MqBody      *ackBody = (MqBody *)(ack + sizeof(MqHead));
-    ackHead->bodySize = sizeof(MqBody);
-    ackBody->type = Type::PUBLISH_ACK;
-    strncpy(ackBody->topic, topic.c_str(), sizeof(ackBody->topic) - 1);
+    body.topic = topic;
+
+    stream.MemPush((void *)&head, sizeof(head));
     
     auto tcpSet = topic2User.find(topic);
     if (tcpSet == topic2User.end()) {
-        ackBody->retcode = Code::NO_CONSUMER;
-    } else {
-        ackBody->retcode = Code::SUCCESS;
+        body.retcode = Code::NO_CONSUMER;
+    } else {        
+        body.content = content;
+        body.retcode = Code::SUCCESS;
+        body.type = Type::MESSAGE;
 
-        uint32_t    msgSize = sizeof(MqHead) + sizeof(MqBody) + content.size() + 1;
-        char        * msg = (char *)calloc(msgSize, sizeof(char));
-        if (msg == nullptr) {
-            return -1;
-        }
-        Defer   msgGuard([&]{
-            delete msg;
-        });
-        MqHead     *msgHead = (MqHead *)msg;
-        MqBody     *msgBody = (MqBody *)(msg + sizeof(MqHead));
-        msgHead->bodySize = msgSize - sizeof(MqHead);
-        msgBody->type = Type::MESSAGE;
-        strncpy(msgBody->topic, topic.c_str(), sizeof(msgBody->topic) - 1);
-        strncpy(msgBody->content, content.c_str(), content.size());
+        stream << body;
+        ((MqHead *)stream.str().c_str())->bodySize = stream.str().size() - sizeof(MqHead);
 
         for (auto & iter : tcpSet->second) {
-            iter->SendMsg(string(msg, msgSize));
-       }
+            iter->SendMsg(stream.str());
+        }
     }
 
-    return tcp->SendMsg(string(ack, sizeof(MqHead) + sizeof(MqBody)));
+    stream.Clear();
+    body.type = Type::PUBLISH_ACK;
+    body.content.clear();
+
+    stream.MemPush((void *)&head, sizeof(head));
+    stream << body;
+    ((MqHead *)stream.str().c_str())->bodySize = stream.str().size() - sizeof(MqHead);
+    return tcp->SendMsg(stream.str());
 }
 
 int HandleMsg(Buff * buff, Tcp * tcp, uint32_t & bodySize) {
@@ -98,37 +90,38 @@ int HandleMsg(Buff * buff, Tcp * tcp, uint32_t & bodySize) {
         return -1;
     }
 
-    uint32_t    size        = 0;
     if (bodySize == 0) {
         MqHead * head = (MqHead *)buff->GetPopBuffByLen(sizeof(MqHead));
         if (head == nullptr) {
             return 0;
         }
         bodySize = head->bodySize;
-        if (bodySize < sizeof(MqBody)) {
+        if (bodySize == 0) {
             return -1;
         }
-        size = bodySize;
     }
     
-    MqBody * body = (MqBody *)buff->GetPopBuffByLen(bodySize);
-    if (body == nullptr) {
+    const char* msgptr = (const char*)buff->GetPopBuffByLen(bodySize);
+    if (msgptr == nullptr) {
         return 0;
     }
-    size += bodySize;
-    uint32_t contentLen = bodySize - sizeof(MqBody);
+    Stream   stream(msgptr, bodySize);
+    MqBody    body;
+    stream >> body;
+    InfoLog(body.topic)(static_cast<int>(body.type))(body.content);
     bodySize = 0;
+    
     int     ret     = -1;
-    if (body->type == Type::SUBSCRIBE) {
-        ret = OnSubscribe(body->topic, tcp);
-    } else if (body->type == Type::PUBLISH) {
-        ret = OnPublish(string(body->topic), string(body->content, contentLen), tcp);
+    if (body.type == Type::SUBSCRIBE) {
+        ret = OnSubscribe(body.topic, tcp);
+    } else if (body.type == Type::PUBLISH) {
+        ret = OnPublish(body.topic, body.content, tcp);
     }
     
     if (ret < 0) {
         return -1;
     }
-    return size;    
+    return 1;    
 }
 
 int main() {
@@ -140,7 +133,7 @@ int main() {
     svr.SetIoCloseFunc([](Tcp * tcp) {
         OnUserExit(tcp);
     });
-    svr.SetIoReadFunc([&bodySize](Buff * buff, Tcp * tcp) {
+    svr.SetIoReadFunc([&bodySize](Buff * buff, Tcp * tcp){
         return HandleMsg(buff, tcp, bodySize);
     });
     svr.SetExitFunc([]{
@@ -149,5 +142,5 @@ int main() {
     svr.Run();
     return 0;
 }
-
+    
 
