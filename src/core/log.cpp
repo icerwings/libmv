@@ -68,23 +68,6 @@ void Log::Flush(const string & module) {
     logOs.str("");
 }
 
-Log::Log() : Log_A(*this), Log_B(*this) {
-    char   * path = getenv("LOGPATH");
-    if (path != nullptr) {
-        while (path[0] == ' ') {
-            path++;
-        }
-    }
-    if (path == nullptr || path[0] == 0) {
-        m_path = "./";
-    } else {
-        m_path = path;
-        if (m_path.back() != '/') {
-            m_path.append("/");
-        }
-    }
-}
-
 Log & Log::Location(const string & srcfile, const int line, const string & func) {
     if (!logOs.str().empty()) {
         Flush();
