@@ -59,7 +59,7 @@ int TcpClient::Connect(const struct sockaddr * inaddr) {
     } while (ret == -1 && errno == EINTR);
     
     if (0 == ret) {
-        m_status = ConnStatus::CONNECTING;
+        m_status = ConnStatus::CONNECTED;
         return 0;
     } else if (errno == EINPROGRESS) {
         m_epollOpr |= EPOLLOUT;
@@ -84,6 +84,7 @@ int TcpClient::OnIoWrite() {
         socklen_t           optlen      = 0;
         int ret = getsockopt(m_sockfd, SOL_SOCKET, SO_ERROR, &optval, &optlen);
         if (ret < 0 || optval != 0) {
+            ErrorLog(ret)(optval).Flush();
             return -1;
         }
         m_status = ConnStatus::CONNECTED;
