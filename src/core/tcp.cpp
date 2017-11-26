@@ -158,13 +158,13 @@ int Tcp::OnIoWrite() {
 }
 
 int Tcp::OnTcpWrite() {
-     if (m_wbuff == nullptr || m_sockfd <= 0) {
-         return -1;
-     }
+    if (m_wbuff == nullptr || m_sockfd <= 0) {
+        return -1;
+    }
      
-     int ret = m_wbuff->Read([&](const char *buff, uint32_t capacity){
+    int ret = m_wbuff->Read([&](const char *buff, uint32_t capacity){
         if (buff == nullptr || capacity == 0) {
-                return -1;
+            return -1;
         }
         int size = 0;
         do {
