@@ -37,6 +37,7 @@ public:
     char *      GetPopBuffUntilStr(const string & end, uint32_t & size);
     int         Push(const char * pkg, uint32_t len);
     bool        Empty() {return (m_occupated == 0);}
+    uint32_t    Size() {return m_occupated;}
 
 private:    
     int         Pop(char * pkg, uint32_t len);

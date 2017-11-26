@@ -21,6 +21,7 @@
 #ifndef __server_h__
 #define __server_h__
 
+#include <sys/types.h>
 #include <string>
 #include <vector>
 #include <functional>
@@ -38,6 +39,7 @@ public:
     int             Open(uint16_t port, uint32_t poolsize = 0);
     void            SetIoReadFunc(function<int(Buff *, Tcp *)> svrcb);
     void            SetIoCloseFunc(function<void(Tcp *)> ioclosecb);
+    void            SetIoAcceptFunc(function<int(Tcp *)> ioacceptcb);
     void            SetCloseFunc(function<void()> closecb);
     void            SetExitSig(int exitsig);
     void            SetExitFunc(function<void()> exitcb);
@@ -50,13 +52,14 @@ protected:
 private:
     int             OpenSpareFile(const string & path);
     void            OnEmfile();
-    int             Accept();
+    int             Accept(struct sockaddr *remote = nullptr);
     
     Epoll                           *m_epoll;
     Signalfd                        *m_signalfd;
     int                             m_sockfd;
     function<int(Buff *, Tcp *)>    m_svrcb;
     function<void(Tcp *)>           m_ioclosecb;
+    function<int(Tcp *)>            m_ioacceptcb;
     function<void()>                m_closecb;
     int                             m_emfile;
     vector<Epoll *>                 m_pool;

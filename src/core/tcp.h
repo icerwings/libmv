@@ -21,15 +21,20 @@
 #ifndef __tcp_h__
 #define __tcp_h__
 
+#include <sys/types.h>
+#include <sys/socket.h>
 #include <stdint.h>
 #include <functional>
 #include "io.h"
 using namespace std;
 
+#define     MIN_BUFF_SIZE       512
+
 class Buff;
 class Tcp : public IO {
 public:
-    Tcp(Epoll * epoll, int sockfd);
+    Tcp(Epoll * epoll, int sockfd) : m_epoll(epoll), m_sockfd(sockfd), m_rbuff(nullptr), m_wbuff(nullptr)
+                                   , m_wtbufsize(MIN_BUFF_SIZE), m_fin(false), m_epollOpr(0) {}
     virtual ~Tcp();
 
     void        SetReadFunc(function<int(Buff *)> readcb, uint32_t buffsize = 0);
@@ -38,6 +43,9 @@ public:
     int         SendMsg(const string & msg);
     void        SendFin();
     void        TcpClose();
+    Epoll       *GetEpoll() {return m_epoll;}
+    void        SetRemote(struct sockaddr *remote);
+    void        GetRemote(struct sockaddr *remote);
 
 protected:    
     virtual void OnIoClose() override;    
@@ -56,6 +64,7 @@ protected:
     uint32_t                m_wtbufsize;
     function<void()>        m_closecb;
     function<int(Buff *)>   m_readcb;
+    struct sockaddr         m_remote;
 };
 
 #endif

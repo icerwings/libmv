@@ -137,7 +137,7 @@ int Buff::Write(function<int(char *, uint32_t)> wtcb, bool once) {
 }
 
 char * Buff::GetPopBuffByLen(uint32_t len) {
-    if (m_occupated < len) {
+    if (m_occupated < len || len == 0) {
         return nullptr;
     }
 
@@ -146,35 +146,34 @@ char * Buff::GetPopBuffByLen(uint32_t len) {
         m_head->out += len;
         m_occupated -= len;
         return buff;
-    } else {
-        if (m_len < len) {
-            if (m_buff != nullptr) {
-                delete m_buff;
-            }
-            m_buff = new char[len];
-            if (m_buff == nullptr) {
-                return nullptr;
-            }
-            m_len = len;
+    }
+    if (m_len < len) {
+        if (m_buff != nullptr) {
+            delete m_buff;
         }
+        m_buff = new char[len];
+        if (m_buff == nullptr) {
+            return nullptr;
+        }
+        m_len = len;
+    }
 
-        uint32_t    offset      = 0;
-        while (true) {
-            int ret = m_head->Pop(m_buff + offset, len - offset);
-            if (ret < 0) {
-                return nullptr;
-            }
-            m_occupated -= ret;
-            if (ret == (int)(len - offset)) {
-                return m_buff;
-            } else if (m_head->next == nullptr) {
-                return nullptr;
-            } else {
-                Block   * cur = m_head;
-                m_head = m_head->next;
-                delete cur;
-                offset += ret;
-            }
+    uint32_t    offset      = 0;
+    while (true) {
+        int ret = m_head->Pop(m_buff + offset, len - offset);
+        if (ret < 0) {
+            return nullptr;
+        }
+        m_occupated -= ret;
+        if (ret == (int)(len - offset)) {
+            return m_buff;
+        } else if (m_head->next == nullptr) {
+            return nullptr;
+        } else {
+            Block   * cur = m_head;
+            m_head = m_head->next;
+            delete cur;
+            offset += ret;
         }
     }
 }
@@ -192,7 +191,7 @@ int Buff::GetOffset(const string & end) {
                     sum += ++offset;
                     return sum;
                 }
-            } else if (matched> 0){
+            } else if (matched > 0){
                 offset -= matched;
                 matched = 0;
             }
@@ -213,7 +212,7 @@ char * Buff::GetPopBuffUntilStr(const string & end, uint32_t & size) {
         return nullptr;
     }
     int ret     = GetOffset(end);
-    if (ret < 0) {
+    if (ret <= 0) {
         return nullptr;
     }
     size = (uint32_t)ret;

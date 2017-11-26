@@ -26,16 +26,6 @@
 #include "buff.h"
 #include "epoll.h"
 
-#define     MIN_BUFF_SIZE           512
-
-Tcp::Tcp(Epoll * epoll, int sockfd) : m_epoll(epoll), m_sockfd(sockfd) {
-    m_epollOpr = 0;
-    m_fin = false;
-    m_wtbufsize  = MIN_BUFF_SIZE;
-    m_rbuff = nullptr;
-    m_wbuff = nullptr;
-}
-
 Tcp::~Tcp() {
     OnIoClose();
 }
@@ -168,13 +158,13 @@ int Tcp::OnIoWrite() {
 }
 
 int Tcp::OnTcpWrite() {
-     if (m_wbuff == nullptr || m_sockfd <= 0) {
-         return -1;
-     }
+    if (m_wbuff == nullptr || m_sockfd <= 0) {
+        return -1;
+    }
      
-     int ret = m_wbuff->Read([&](const char *buff, uint32_t capacity){
+    int ret = m_wbuff->Read([&](const char *buff, uint32_t capacity){
         if (buff == nullptr || capacity == 0) {
-                return -1;
+            return -1;
         }
         int size = 0;
         do {
@@ -201,5 +191,13 @@ int Tcp::OnTcpWrite() {
     }
     return 0;
 }
-
-
+void Tcp::SetRemote(struct sockaddr *remote) {
+    if (remote != nullptr) {
+        memcpy(&m_remote, remote, sizeof(m_remote));
+    }
+}
+void Tcp::GetRemote(struct sockaddr *remote) {
+    if (remote != nullptr) {
+        memcpy(remote, &m_remote, sizeof(*remote));
+    }
+}
