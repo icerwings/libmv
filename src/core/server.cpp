@@ -100,6 +100,9 @@ void Server::SetIoReadFunc(function<int(Buff *, Tcp *)> svrcb) {
 void Server::SetIoCloseFunc(function<void(Tcp *)> ioclosecb) {
     m_ioclosecb = ioclosecb;
 }
+void Server::SetIoAcceptFunc(function<int(Tcp *)> ioacceptcb) {
+    m_ioacceptcb = ioacceptcb;
+}
 void Server::SetCloseFunc(function<void()> closecb) {
     m_closecb = closecb;
 }
@@ -121,24 +124,26 @@ void Server::OnIoClose() {
     }    
 }
 
-int Server::Accept() {
+int Server::Accept(struct sockaddr *remote) {
     int peerfd = 0;
+     socklen_t salen = sizeof(struct sockaddr);
+     socklen_t *rtlen = &salen;
+     if (remote == nullptr) {
+         rtlen = nullptr;
+     }
+
     do {
-        peerfd = accept4(m_sockfd, nullptr, nullptr, SOCK_NONBLOCK | SOCK_CLOEXEC);
+        peerfd = accept4(m_sockfd, remote, rtlen, SOCK_NONBLOCK | SOCK_CLOEXEC);
     }while (peerfd == -1 && errno == EINTR);
     
-    if (peerfd > 0) {
-        return peerfd;
-    } else if (errno != EINVAL) {
-        return -1;
-    } 
-    do {
-        peerfd = accept(m_sockfd, nullptr, nullptr);
-    }while (peerfd == -1 && errno == EINTR);
-
-    if (peerfd > 0) {
-        FdSet(peerfd, O_NONBLOCK);
-        FdSet(peerfd, FD_CLOEXEC);
+    if (peerfd == -1 && errno == EINVAL) {
+        do {
+            peerfd = accept(m_sockfd, remote, rtlen);
+        }while (peerfd == -1 && errno == EINTR);
+        if (peerfd > 0) {
+            FdSet(peerfd, O_NONBLOCK);
+            FdSet(peerfd, FD_CLOEXEC);
+        }
     }
     return peerfd;
 }
@@ -170,7 +175,8 @@ int Server::OnIoRead() {
     if (m_sockfd < 0) {
         return -1;
     }
-    int peerfd = Accept();
+    struct sockaddr   sa;
+    int peerfd = Accept(&sa);
     if (peerfd < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             return 0;
@@ -203,7 +209,11 @@ int Server::OnIoRead() {
         }
         return -1;
     });
-    
+    tcp->SetRemote(&sa);
+    if (m_ioacceptcb && m_ioacceptcb(tcp) < 0) {
+        delete tcp;
+        return 0;
+    }    
     return 0;
 }
 
