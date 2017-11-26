@@ -52,7 +52,7 @@ protected:
 private:
     int             OpenSpareFile(const string & path);
     void            OnEmfile();
-    int             Accept(struct sockaddr *remote);
+    int             Accept(struct sockaddr *remote = nullptr);
     
     Epoll                           *m_epoll;
     Signalfd                        *m_signalfd;
