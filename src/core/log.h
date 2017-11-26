@@ -60,22 +60,7 @@ public:
     Log & Assert(const string & cond);
     
 private:
-    Log() : Log_A(*this), Log_B(*this) {
-        char   * path = getenv("LOGPATH");
-        if (path != nullptr) {
-            while (path[0] == ' ') {
-                path++;
-            }
-        }
-        if (path == nullptr || path[0] == 0) {
-            m_path = "./";
-        } else {
-            m_path = path;
-            if (m_path.back() != '/') {
-                m_path.append("/");
-            }
-        }
-    }
+    Log();
     static thread_local ostringstream  logOs;
     static Log              *m_instance;    
     string                  m_path;
