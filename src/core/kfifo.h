@@ -29,7 +29,7 @@ using namespace std;
 static inline uint32_t Pow2Up(uint32_t value) {
     if (value > 0) {
         value--;
-        for (int iLoop = 1; iLoop < (int)sizeof(value); iLoop *= 2) {
+        for (int iLoop = 1; iLoop < (int)(sizeof(value) * 8); iLoop *= 2) {
             value |= (value >> iLoop);
         }
     }
